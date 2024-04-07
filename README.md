@@ -11,5 +11,7 @@ pip install -r requirements.txt
 ```shell
 # set environment variable
 export CH_WEBUI_SERVER=http://10.140.1.178:33088
+
+python app.py --bind_all --share --port 10187
 ```
 
