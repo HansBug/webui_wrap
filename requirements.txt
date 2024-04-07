@@ -1,0 +1,9 @@
+webuiapi
+pillow
+dghs-imgutils>=0.4.1
+scikit-image
+pandas
+onnxruntime-gpu
+httpx>=0.23.0
+gradio==4.21.0
+hbutils
