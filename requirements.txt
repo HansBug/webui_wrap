@@ -7,3 +7,5 @@ onnxruntime-gpu
 httpx>=0.23.0
 gradio==4.21.0
 hbutils
+click>=8
+di-toolkit>=0.2
