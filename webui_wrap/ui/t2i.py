@@ -59,7 +59,7 @@ _DEFAULT_NEG_PROMPT = """
 """
 
 
-def create_t2i_ui():
+def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
     auto_init_webui()
 
     with gr.Row():
@@ -114,6 +114,7 @@ def create_t2i_ui():
                 gr_batch_size,
                 gr_enable_hr, gr_hires_width, gr_hires_height,
                 gr_denoising_strength, gr_hires_steps, gr_hires_upscaler,
+                gr_clip_skip, gr_base_model,
             ],
             outputs=[gr_gallery, ],
         )
