@@ -1,3 +1,4 @@
+import json
 import logging
 from functools import lru_cache
 
@@ -41,7 +42,8 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
     )
 
     logging.info(f'Inference complete, {plural_word(len(result.images), "image")} get.')
-    return result.images
+    meta_infos = [image.info.get('parameters') for image in result.images]
+    return result.images, json.dumps(meta_infos)
 
 
 @lru_cache()
@@ -65,9 +67,10 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
     with gr.Row():
         with gr.Column():
             with gr.Row():
-                gr_prompt = gr.TextArea(label='Prompt', value=_DEFAULT_PROMPT.lstrip())
+                gr_prompt = gr.TextArea(label='Prompt', value=_DEFAULT_PROMPT.lstrip(), show_copy_button=True)
             with gr.Row():
-                gr_neg_prompt = gr.TextArea(label='negative prompt', value=_DEFAULT_NEG_PROMPT.lstrip())
+                gr_neg_prompt = gr.TextArea(label='negative prompt', value=_DEFAULT_NEG_PROMPT.lstrip(),
+                                            show_copy_button=True)
 
             with gr.Tabs():
                 with gr.Tab('General'):
@@ -105,15 +108,20 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
         with gr.Column():
             gr_generate = gr.Button(value='Generate', variant='primary')
             gr_gallery = gr.Gallery(label='Gallery')
-            gr_meta_info = gr.Code(label='Meta Information', value='', lines=15, language=None)
+            gr_hidden_metas = gr.TextArea(visible=False, interactive=False)
+            gr_meta_info = gr.Text(label='Meta Information', value='', lines=10, show_copy_button=True,
+                                   interactive=False)
 
-            def _gallery_select(evt: gr.SelectData):
-                print(evt.selected)
+            def _gallery_select(hidden_meta: str, evt: gr.SelectData):
+                if evt.selected:
+                    return json.loads(hidden_meta)[evt.index] or '<empty>'
+                else:
+                    return 'N/A'
 
             gr_gallery.select(
                 _gallery_select,
-                inputs=None,
-                outputs=None,
+                inputs=[gr_hidden_metas],
+                outputs=[gr_meta_info],
             )
 
         gr_generate.click(
@@ -126,5 +134,5 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                 gr_denoising_strength, gr_hires_steps, gr_hires_upscaler,
                 gr_clip_skip, gr_base_model,
             ],
-            outputs=[gr_gallery, ],
+            outputs=[gr_gallery, gr_hidden_metas],
         )
