@@ -105,6 +105,16 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
         with gr.Column():
             gr_generate = gr.Button(value='Generate', variant='primary')
             gr_gallery = gr.Gallery(label='Gallery')
+            gr_meta_info = gr.Code(label='Meta Information', value='', lines=15, language=None)
+
+            def _gallery_select(evt: gr.SelectData):
+                print(evt.selected)
+
+            gr_gallery.select(
+                _gallery_select,
+                inputs=None,
+                outputs=None,
+            )
 
         gr_generate.click(
             t2i_infer,
