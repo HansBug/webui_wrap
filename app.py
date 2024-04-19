@@ -3,7 +3,7 @@ import gradio as gr
 from ditk import logging
 
 from webui_wrap.base import auto_init_webui, get_webui_client
-from webui_wrap.ui import create_t2i_ui, create_base_model_ui
+from webui_wrap.ui import create_t2i_ui, create_base_model_ui, create_i2i_ui
 
 logging.try_init_root(logging.INFO)
 CONTEXT_SETTINGS = dict(
@@ -40,6 +40,9 @@ def app(bind_all: bool, share: bool, port: int):
             with gr.Tabs():
                 with gr.Tab('T2I'):
                     create_t2i_ui(gr_base_model, gr_clip_skip)
+
+                with gr.Tab('I2I'):
+                    create_i2i_ui(gr_base_model, gr_clip_skip)
 
     demo.launch(
         share=bool(share),

@@ -41,7 +41,7 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
         },
     )
 
-    logging.info(f'Inference complete, {plural_word(len(result.images), "image")} get.')
+    logging.info(f'T2I complete, {plural_word(len(result.images), "image")} get.')
     meta_infos = [image.info.get('parameters') for image in result.images]
     return result.images, json.dumps(meta_infos)
 
