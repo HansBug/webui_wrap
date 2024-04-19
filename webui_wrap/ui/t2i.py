@@ -4,7 +4,7 @@ from functools import lru_cache
 
 import gradio as gr
 from hbutils.string import plural_word
-
+from webuiapi import ControlNetUnit
 from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS
 
 
@@ -39,6 +39,9 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
         override_settings={
             'CLIP_stop_at_last_layers': clip_skip,
         },
+        controlnet_units=[
+
+        ]
     )
 
     logging.info(f'T2I complete, {plural_word(len(result.images), "image")} get.')
