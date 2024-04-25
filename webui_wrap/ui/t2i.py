@@ -4,8 +4,8 @@ from functools import lru_cache
 
 import gradio as gr
 from hbutils.string import plural_word
-from webuiapi import ControlNetUnit
-from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS
+
+from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS, has_dynamic_prompts, dynamic_prompt_params
 
 
 def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
@@ -14,7 +14,8 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
               batch_size=1,
               enable_hr: bool = False, hr_resize_x=832, hr_resize_y=1216,
               denoising_strength=0.6, hr_second_pass_steps=20, hr_upscaler='R-ESRGAN 4x+ Anime6B',
-              clip_skip: int = 2, base_model: str = 'meinamix_v11'):
+              clip_skip: int = 2, base_model: str = 'meinamix_v11',
+              dynamic_prompts_enabled: bool = False, dp_fixed_seed: bool = False):
     auto_init_webui()
     client = get_webui_client()
     client.util_set_model(base_model)
@@ -41,7 +42,14 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
         },
         controlnet_units=[
 
-        ]
+        ],
+        alwayson_scripts={
+            **dynamic_prompt_params(
+                is_enabled=dynamic_prompts_enabled,
+                is_combinatorial=dynamic_prompts_enabled,
+                use_fixed_seed=dp_fixed_seed,
+            )
+        },
     )
 
     logging.info(f'T2I complete, {plural_word(len(result.images), "image")} get.')
@@ -108,6 +116,18 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                         gr_hires_upscaler = gr.Dropdown(value='R-ESRGAN 4x+ Anime6B', label='Hires Upscaler',
                                                         choices=_get_hires_upscalers())
 
+                with gr.Tab('Dynamic Prompts'):
+                    if has_dynamic_prompts():
+                        gr.Markdown('**No dynamic prompt plugin found in WebUI. Please install it.**')
+                    gr_dynamic_prompts_enabled = gr.Checkbox(
+                        value=False, label='Enable Dynamic Prompts',
+                        visible=has_dynamic_prompts(),
+                    )
+                    gr_dp_fixed_seed = gr.Checkbox(
+                        value=False, label='Use Fixed Seed',
+                        visible=has_dynamic_prompts()
+                    )
+
         with gr.Column():
             gr_generate = gr.Button(value='Generate', variant='primary')
             gr_gallery = gr.Gallery(label='Gallery')
@@ -136,6 +156,7 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                 gr_enable_hr, gr_hires_width, gr_hires_height,
                 gr_denoising_strength, gr_hires_steps, gr_hires_upscaler,
                 gr_clip_skip, gr_base_model,
+                gr_dynamic_prompts_enabled, gr_dp_fixed_seed,
             ],
             outputs=[gr_gallery, gr_hidden_metas],
         )
