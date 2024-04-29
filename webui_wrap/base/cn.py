@@ -2,7 +2,12 @@ from enum import Enum
 from functools import lru_cache
 from typing import Dict, List, Tuple
 
-from .webui import auto_init_webui, get_webui_client
+from .webui import auto_init_webui, get_webui_client, _get_client_scripts
+
+
+@lru_cache()
+def has_controlnet():
+    return any(map(lambda x: x.lower() == 'controlnet', _get_client_scripts()))
 
 
 @lru_cache()
@@ -130,7 +135,7 @@ def select_control_type(
         sd_version: StableDiffusionVersion = StableDiffusionVersion.UNKNOWN,
         cn_models: Dict = None,  # Override or testing
 ) -> Tuple[List[str], List[str], str, str]:
-    default_option = preprocessor_filters[control_type]
+    default_preprocessor = preprocessor_filters[control_type]
     pattern = control_type.lower()
     preprocessor_list = ui_preprocessor_keys
     if cn_models is None:
@@ -178,8 +183,8 @@ def select_control_type(
             ))
     ]
     assert len(filtered_model_list) > 0, "'None' model should always be available."
-    if default_option not in filtered_preprocessor_list:
-        default_option = filtered_preprocessor_list[0]
+    if default_preprocessor not in filtered_preprocessor_list:
+        default_preprocessor = filtered_preprocessor_list[0]
     if len(filtered_model_list) == 1:
         default_model = "None"
     else:
@@ -192,6 +197,6 @@ def select_control_type(
     return (
         filtered_preprocessor_list,
         filtered_model_list,
-        default_option,
+        default_preprocessor,
         default_model
     )
