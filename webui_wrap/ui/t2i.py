@@ -4,32 +4,39 @@ from functools import lru_cache
 
 import gradio as gr
 from hbutils.string import plural_word
-from webuiapi import ControlNetUnit
+from webuiapi import ControlNetUnit, ADetailer
 
+from .adetailer import create_adetailer_ui
 from .controlnet import create_controlnet_ui
-from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS, has_dynamic_prompts, dynamic_prompt_params
+from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS, has_dynamic_prompts, dynamic_prompt_params, \
+    has_controlnet, has_adetailer
 
 
-def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
-              sampler_name='DPM++ 2M Karras', cfg_scale=7, steps=30,
-              firstphase_width=512, firstphase_height=768,
-              batch_size=1,
-              enable_hr: bool = False, hr_resize_x=832, hr_resize_y=1216,
-              denoising_strength=0.6, hr_second_pass_steps=20, hr_upscaler='R-ESRGAN 4x+ Anime6B',
-              clip_skip: int = 2, base_model: str = 'meinamix_v11',
-              dynamic_prompts_enabled: bool = False, dp_fixed_seed: bool = False,
-              enable_controlnet: bool = True, cn_input_image=None,
-              cn_preprocessor: str = 'None', cn_model: str = 'None',
-              cn_control_weight: float = 1.0, cn_start_control_step=0.0,
-              cn_end_control_step=1.0, cn_control_mode=0, cn_resize_mode="Crop and Resize",
-              ):
+def t2i_infer(
+        prompt, neg_prompt: str, seed: int = -1,
+        sampler_name='DPM++ 2M Karras', cfg_scale=7, steps=30,
+        firstphase_width=512, firstphase_height=768,
+        batch_size=1,
+        enable_hr: bool = False, hr_resize_x=832, hr_resize_y=1216,
+        denoising_strength=0.6, hr_second_pass_steps=20, hr_upscaler='R-ESRGAN 4x+ Anime6B',
+        clip_skip: int = 2, base_model: str = 'meinamix_v11',
+
+        dynamic_prompts_enabled: bool = False, dp_fixed_seed: bool = False,
+
+        cn_enabled: bool = True, cn_input_image=None,
+        cn_preprocessor: str = 'None', cn_model: str = 'None',
+        cn_control_weight: float = 1.0, cn_start_control_step=0.0,
+        cn_end_control_step=1.0, cn_control_mode=0, cn_resize_mode="Crop and Resize",
+
+        ad_enabled: bool = False, ad_model: str = 'None',
+        ad_prompt: str = '', ad_neg_prompt: str = '',
+):
     auto_init_webui()
     client = get_webui_client()
     client.util_set_model(base_model)
 
-    logging.info('Inferring ...')
     controlnet_units = []
-    if enable_controlnet:
+    if cn_enabled:
         controlnet_units.append(ControlNetUnit(
             input_image=cn_input_image,
             module=cn_preprocessor,
@@ -40,6 +47,17 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
             control_mode=cn_control_mode,
             resize_mode=cn_resize_mode,
         ))
+
+    adetailer_units = []
+    if ad_enabled:
+        adetailer_units.append(ADetailer(
+            ad_model=ad_model,
+            ad_prompt=ad_prompt,
+            ad_negative_prompt=ad_neg_prompt,
+            ad_clip_skip=clip_skip,
+        ))
+
+    logging.info('Inferring ...')
     result = client.txt2img(
         prompt=prompt,
         negative_prompt=neg_prompt,
@@ -60,6 +78,7 @@ def t2i_infer(prompt, neg_prompt: str, seed: int = -1,
             'CLIP_stop_at_last_layers': clip_skip,
         },
         controlnet_units=controlnet_units,
+        adetailer=adetailer_units,
         alwayson_scripts={
             **dynamic_prompt_params(
                 is_enabled=dynamic_prompts_enabled,
@@ -133,7 +152,7 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                         gr_hires_upscaler = gr.Dropdown(value='R-ESRGAN 4x+ Anime6B', label='Hires Upscaler',
                                                         choices=_get_hires_upscalers())
 
-                with gr.Tab('Dynamic Prompts'):
+                with gr.Tab('Dynamic Prompts', visible=has_dynamic_prompts()):
                     gr_dynamic_prompts_enabled = gr.Checkbox(
                         value=False,
                         label='Enable Dynamic Prompts' if has_dynamic_prompts() else
@@ -144,8 +163,10 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                         value=False, label='Use Fixed Seed',
                         interactive=has_dynamic_prompts()
                     )
-                with gr.Tab('ControlNet'):
+                with gr.Tab('ControlNet', visible=has_controlnet()):
                     gr_controlnet_components = create_controlnet_ui()
+                with gr.Tab('Adetailer', visible=has_adetailer()):
+                    gr_adetailer_components = create_adetailer_ui()
 
         with gr.Column():
             gr_generate = gr.Button(value='Generate', variant='primary')
@@ -177,6 +198,7 @@ def create_t2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                 gr_clip_skip, gr_base_model,
                 gr_dynamic_prompts_enabled, gr_dp_fixed_seed,
                 *gr_controlnet_components,
+                *gr_adetailer_components,
             ],
             outputs=[gr_gallery, gr_hidden_metas],
         )
