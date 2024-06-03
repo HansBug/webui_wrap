@@ -2,12 +2,13 @@ import json
 import logging
 
 import gradio as gr
+import numpy as np
 from hbutils.string import plural_word
 
 from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS
 
 
-def i2i_infer(init_image, prompt, neg_prompt: str, seed: int = -1,
+def i2i_infer(init_image, inpaint_blur, prompt, neg_prompt: str, seed: int = -1,
               sampler_name='DPM++ 2M Karras', cfg_scale=7, img_cfg_scale=1.5, steps=30,
               firstphase_width=512, firstphase_height=768, denoising_strength=0.75,
               batch_size=1,
@@ -16,8 +17,15 @@ def i2i_infer(init_image, prompt, neg_prompt: str, seed: int = -1,
     client = get_webui_client()
     client.util_set_model(base_model)
 
+    origin_image = init_image['background']
+    mask_image = init_image['layers'][-1]
+    mask_alpha = np.isclose(np.array(mask_image)[..., 3].astype(np.float32) / 255.0, 1.0)
+    mask_used = np.any(mask_alpha)
+
     result = client.img2img(
-        images=[init_image],
+        images=[origin_image],
+        mask_image=mask_image if mask_used else None,
+        mask_blur=inpaint_blur,
         prompt=prompt,
         negative_prompt=neg_prompt,
         sampler_name=sampler_name,
@@ -59,7 +67,14 @@ def create_i2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
                 gr_neg_prompt = gr.TextArea(label='negative prompt', value=_DEFAULT_NEG_PROMPT.lstrip(),
                                             show_copy_button=True)
             with gr.Row():
-                gr_init_image = gr.Image(label='Initial Image', type='pil')
+                gr_init_image = gr.ImageEditor(label='Initial Image', type='pil', image_mode='RGBA')
+            with gr.Row():
+                gr.Markdown("""
+                **If you want to inpaint some area, just brush the areas you need.**
+
+                If no areas brushed, it will be simply image-to-image.
+                """)
+                gr_inpaint_blur = gr.Slider(label='Inpaint Mask Blur', value=4, minimum=1, maximum=64, step=1)
 
             with gr.Row():
                 gr_sampler = gr.Dropdown(label='Sampler', value='Euler a', choices=WEBUI_SAMPLERS)
@@ -102,7 +117,7 @@ def create_i2i_ui(gr_base_model: gr.Dropdown, gr_clip_skip: gr.Slider):
         gr_generate.click(
             i2i_infer,
             inputs=[
-                gr_init_image, gr_prompt, gr_neg_prompt, gr_seed,
+                gr_init_image, gr_inpaint_blur, gr_prompt, gr_neg_prompt, gr_seed,
                 gr_sampler, gr_cfg_scale, gr_img_cfg_scale, gr_steps,
                 gr_width, gr_height, gr_denoising_strength,
                 gr_batch_size,
