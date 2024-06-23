@@ -54,7 +54,7 @@ def i2i_infer(init_image, inpaint_blur, prompt, neg_prompt: str, seed: int = -1,
 
 
 _DEFAULT_PROMPT = """
-(safe:1.10), best quality, masterpiece, highres, solo, (leto_arknights:1.10), 11 <lora:leto_arknights-000069:0.80>
+(safe:1.10), best quality, masterpiece, highres, solo, (saber_fatestaynightufotable:1.10), 11 <lora:saber_fatestaynightufotable:0.80>
 """
 
 _DEFAULT_NEG_PROMPT = """
