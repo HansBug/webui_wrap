@@ -1,6 +1,6 @@
 webuiapi
 pillow
-dghs-imgutils>=0.4.1
+dghs-imgutils>=0.4.6
 scikit-image
 pandas
 onnxruntime-gpu
@@ -9,3 +9,4 @@ gradio==4.21.0
 hbutils
 click>=8
 di-toolkit>=0.2
+pyarrow

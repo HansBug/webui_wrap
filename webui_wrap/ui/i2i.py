@@ -6,6 +6,7 @@ import numpy as np
 from hbutils.string import plural_word
 
 from ..base import auto_init_webui, get_webui_client, WEBUI_SAMPLERS
+from ..storage import load_recorder_from_env
 
 
 def i2i_infer(init_image, inpaint_blur, prompt, neg_prompt: str, seed: int = -1,
@@ -44,6 +45,11 @@ def i2i_infer(init_image, inpaint_blur, prompt, neg_prompt: str, seed: int = -1,
 
     logging.info(f'T2I complete, {plural_word(len(result.images), "image")} get.')
     meta_infos = [image.info.get('parameters') for image in result.images]
+    recorder = load_recorder_from_env()
+    logging.info(f'Recording {plural_word(len(result.images), "image")} to system.')
+    for image, meta_info in zip(result.images, meta_infos):
+        recorder.put_image(image, meta_info)
+    recorder.save()
     return result.images, json.dumps(meta_infos)
 
 
