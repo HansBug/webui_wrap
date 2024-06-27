@@ -1,16 +1,22 @@
 import json
+import logging
 import os.path
 import time
+from functools import lru_cache
 from threading import Lock
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import pandas as pd
 from PIL import Image
+from huggingface_hub import hf_hub_download
 from imgutils.sd import parse_sdmeta_from_text
 from imgutils.tagging import get_wd14_tags
+from imgutils.tagging.wd14 import MODEL_NAMES
 
 from .base import BaseImageStorage
+
+_TAGGER_MODEL = 'SwinV2_v3'
 
 
 def _value_safe(x):
@@ -18,6 +24,24 @@ def _value_safe(x):
         return x
     else:
         return json.dumps(x)
+
+
+@lru_cache()
+def _load_tags_database():
+    df_tags = pd.read_csv(hf_hub_download(
+        repo_id='deepghs/wd14_tagger_with_embeddings',
+        repo_type='model',
+        filename=f'{MODEL_NAMES[_TAGGER_MODEL]}/tags_info.csv',
+    ))
+    df_tags = df_tags.replace(np.NaN, None)
+    df_tags = df_tags[df_tags['category'].isin({0, 4})]
+
+    retval = {}
+    for item in df_tags.to_dict('records'):
+        for name in json.loads(item['aliases']):
+            retval[name] = item
+
+    return retval
 
 
 class ImageRecorder:
@@ -70,7 +94,10 @@ class ImageRecorder:
     def put_image(self, image: Image.Image, meta_text: Optional[str] = None):
         with self._lock:
             ratings, general, character, embedding = get_wd14_tags(
-                image, fmt=('rating', 'general', 'character', 'embedding'))
+                image,
+                fmt=('rating', 'general', 'character', 'embedding'),
+                model_name=_TAGGER_MODEL,
+            )
             rs = np.array(list(ratings.keys()))
             vs = np.array([ratings.get(r, 0.0) for r in rs])
             rating = str(rs[np.argmax(vs)].item())
@@ -103,3 +130,26 @@ class ImageRecorder:
     def save(self):
         with self._lock:
             self._save_to_local()
+
+    def query_with_tags(self, tags: List[str], neg_tags: List[str]) -> List[Image.Image]:
+        _db_tags = _load_tags_database()
+        query_tags, query_neg_tags = [], []
+        for tag in tags:
+            if tag not in _db_tags:
+                logging.warning(f'Tag {tag!r} unrecognizable, it will be ignored.')
+            else:
+                query_tags.append(_db_tags[tag]['name'])
+        for tag in neg_tags:
+            if tag not in _db_tags:
+                logging.warning(f'Negative tag {tag!r} recognizable, it will be ignored.')
+            else:
+                query_neg_tags.append(_db_tags[tag]['name'])
+
+        logging.info(f'Querying with tags: {query_tags!r} and negative tags: {query_neg_tags!r} ...')
+        df_query = self._df_records
+        for tag in query_tags:
+            df_query = df_query[df_query['tags'].str.contains(f' {tag} ')]
+        for tag in query_neg_tags:
+            df_query = df_query[~df_query['tags'].str.contains(f' {tag} ')]
+
+        return [self.image_storage.get_image(filename) for filename in df_query['filename']]
