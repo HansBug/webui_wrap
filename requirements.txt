@@ -4,7 +4,7 @@ dghs-imgutils>=0.4.6
 scikit-image
 pandas
 httpx>=0.23.0
-gradio==4.21.0
+gradio==4.37.1
 hbutils
 click>=8
 di-toolkit>=0.2
