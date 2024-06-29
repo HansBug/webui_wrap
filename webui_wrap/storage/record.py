@@ -162,9 +162,9 @@ class ImageRecorder:
         logging.info(f'Querying with tags: {query_tags!r} and negative tags: {query_neg_tags!r} ...')
         df_query = self._df_records
         for tag in query_tags:
-            df_query = df_query[df_query['tags'].str.contains(f' {tag} ')]
+            df_query = df_query[df_query['tags'].str.contains(f' {tag} ', regex=False)]
         for tag in query_neg_tags:
-            df_query = df_query[~df_query['tags'].str.contains(f' {tag} ')]
+            df_query = df_query[~df_query['tags'].str.contains(f' {tag} ', regex=False)]
 
         return [self.image_storage.get_image(filename) for filename in df_query['filename']]
 
