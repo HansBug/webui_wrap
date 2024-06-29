@@ -56,4 +56,38 @@ def create_history_ui():
                 )
 
         with gr.Tab('About Tags'):
-            pass
+            with gr.Row():
+                with gr.Column():
+                    def _make_radio():
+                        return gr.Radio(
+                            choices=[
+                                (
+                                    f'[{"C" if item["type"] == "character" else "G"}] {item["tag"]} ({item["count"]})',
+                                    item['tag'],
+                                ) for item in recorder.list_tags()
+                            ],
+                            value=None,
+                            label='Tags'
+                        )
+
+                    gr_radio: gr.Radio = _make_radio()
+                    gr_tags_refresh = gr.Button(value='Refresh Tags')
+                    gr_tags_refresh.click(
+                        fn=_make_radio,
+                        outputs=[gr_radio],
+                    )
+
+                with gr.Column():
+                    gr_tag_info = gr.Markdown(
+                        label='Tag Information',
+                        value='(N/A)'
+                    )
+
+                    def _create_tag_info(tag: str) -> str:
+                        return recorder.get_tag_info(tag)
+
+                    gr_radio.select(
+                        fn=_create_tag_info,
+                        inputs=[gr_radio],
+                        outputs=gr_tag_info,
+                    )
