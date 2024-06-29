@@ -58,6 +58,17 @@ def _load_general_tags_info():
     return {item['name']: item for item in df_general_tags.to_dict('records')}
 
 
+@lru_cache()
+def _load_character_tags_info():
+    df_character_tags = pd.read_csv(hf_hub_download(
+        repo_id='deepghs/tags_meta',
+        repo_type='dataset',
+        filename='character_tags.csv',
+    ))
+    df_character_tags = df_character_tags.replace(np.NaN, None)
+    return {item['name']: item for item in df_character_tags.to_dict('records')}
+
+
 class ImageRecorder:
     def __init__(self, storage: BaseImageStorage, root_dir: str):
         self.image_storage = storage
@@ -191,39 +202,41 @@ class ImageRecorder:
             print(f'', file=sf)
 
             if tag_category == 0:
-                general_tag_info = _load_general_tags_info()[tag]
+                tag_info = _load_general_tags_info()[tag]
+            else:
+                tag_info = _load_character_tags_info()[tag]
 
-                alias_names = json.loads(general_tag_info['aliases'])
-                other_names = json.loads(general_tag_info['other_names'])
-                if alias_names or other_names:
-                    print(f'## Aliases', file=sf)
+            alias_names = json.loads(tag_info['aliases'])
+            other_names = json.loads(tag_info['other_names'])
+            if alias_names or other_names:
+                print(f'## Aliases', file=sf)
+                print(f'', file=sf)
+                if alias_names:
+                    print(f'Alias names: {", ".join([f"`{t}`" for t in alias_names])}', file=sf)
                     print(f'', file=sf)
-                    if alias_names:
-                        print(f'Alias names: {", ".join([f"`{t}`" for t in alias_names])}', file=sf)
-                        print(f'', file=sf)
-                    if other_names:
-                        print(f'Other names: {", ".join([f"`{t}`" for t in other_names])}', file=sf)
-                        print(f'', file=sf)
+                if other_names:
+                    print(f'Other names: {", ".join([f"`{t}`" for t in other_names])}', file=sf)
+                    print(f'', file=sf)
 
-                print('## Translation', file=sf)
-                print(f'', file=sf)
-                print(f'### English - {general_tag_info["en_tag"]}', file=sf)
-                print(f'', file=sf)
-                print(f'{general_tag_info["en_desc"]}', file=sf)
-                print(f'', file=sf)
-                print(f'### Chinese - {general_tag_info["zh_tag"]}', file=sf)
-                print(f'', file=sf)
-                print(f'{general_tag_info["zh_desc"]}', file=sf)
-                print(f'', file=sf)
-                print(f'### Japanese - {general_tag_info["jp_tag"]}', file=sf)
-                print(f'', file=sf)
-                print(f'{general_tag_info["jp_desc"]}', file=sf)
-                print(f'', file=sf)
+            print('## Translation', file=sf)
+            print(f'', file=sf)
+            print(f'### English - {tag_info["en_tag"]}', file=sf)
+            print(f'', file=sf)
+            print(f'{tag_info["en_desc"]}', file=sf)
+            print(f'', file=sf)
+            print(f'### Chinese - {tag_info["zh_tag"]}', file=sf)
+            print(f'', file=sf)
+            print(f'{tag_info["zh_desc"]}', file=sf)
+            print(f'', file=sf)
+            print(f'### Japanese - {tag_info["jp_tag"]}', file=sf)
+            print(f'', file=sf)
+            print(f'{tag_info["jp_desc"]}', file=sf)
+            print(f'', file=sf)
 
-                if general_tag_info['wiki_desc']:
-                    print('## Raw Wiki Text', file=sf)
-                    print(f'', file=sf)
-                    print(f'{general_tag_info["wiki_desc"]}', file=sf)
-                    print(f'', file=sf)
+            if tag_info['wiki_desc']:
+                print('## Raw Wiki Text', file=sf)
+                print(f'', file=sf)
+                print(f'{tag_info["wiki_desc"]}', file=sf)
+                print(f'', file=sf)
 
             return sf.getvalue()
